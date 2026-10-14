@@ -7,32 +7,50 @@
 
 #define MSGSZ 128
 
-
-typedef struct msgbuf
-{
+typedef struct msgbuf {
     long mtype;
-    char mtext[MSGSZ]; // Un mensaje de longitud MSGSZ
+    char mtext[MSGSZ];
 } message_buf;
 
-int main()
-{
+int main() {
     int msqid;
-    key_t key;
-    message_buf rbuf, sbuf;
+    int msgflg = IPC_CREAT | 0666;
+    key_t key = 1234;
+    message_buf sbuf, rbuf;
     size_t buf_length;
 
-    key = 1234;
-    if ((msqid = msgget(key, 0666)) < 0)
-    {
+    if ((msqid = msgget(key, msgflg)) < 0) {
         perror("msgget");
         exit(1);
     }
-    if (msgrcv(msqid, &rbuf, MSGSZ, 1, 0) < 0)
-    {
-        perror("msgrcv");
+
+    // 1. Envía "Are you hearing me?" (mtype = 1)
+    sbuf.mtype = 1;
+    strcpy(sbuf.mtext, "Are you hearing me?");
+    buf_length = strlen(sbuf.mtext) + 1;
+
+    if (msgsnd(msqid, &sbuf, buf_length, 0) < 0) {
+        perror("msgsnd (1)");
         exit(1);
     }
-    printf("%s\n", rbuf.mtext);
-    exit(0);
-}
+    printf("%s\n", sbuf.mtext);
 
+    // 2. Recibe "Loud and clear" (mtype = 2) sin imprimir
+    if (msgrcv(msqid, &rbuf, MSGSZ, 2, 0) < 0) {
+        perror("msgrcv (2)");
+        exit(1);
+    }
+
+    // 3. Replica "I can hear you too" (mtype = 3)
+    sbuf.mtype = 3;
+    strcpy(sbuf.mtext, "I can hear you too");
+    buf_length = strlen(sbuf.mtext) + 1;
+
+    if (msgsnd(msqid, &sbuf, buf_length, 0) < 0) {
+        perror("msgsnd (3)");
+        exit(1);
+    }
+    printf("%s\n", sbuf.mtext);
+
+    return 0;
+}
